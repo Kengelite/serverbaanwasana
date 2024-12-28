@@ -98,6 +98,21 @@ app.get("/users", async (req, res) => {
   }
 });
 
+app.post("/select_detail_flower", async (req, res) => {
+  let select_id_flower = req.body.id_select;
+  // console.log(select_id_flower)
+  try {
+    const [rows] = await pool.execute(`SELECT * FROM bunch_flowers
+      where id_bflower = ?
+      `,[select_id_flower]);
+    res.json({data:rows});
+  } catch (error) {
+    console.error("Error executing query:", error);
+    res.status(500).send("Error retrieving data");
+  }
+});
+
+
 app.get("/", (req, res) => {
   res.send("Hello Backend!");
 });
