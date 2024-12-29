@@ -5,7 +5,7 @@ const cors = require("cors");
 const path = require("path");
 const mysql = require("mysql2/promise");
 const { v4: uuidv4 } = require("uuid");
-require("dotenv").config(); 
+require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5005;
 app.use(cors());
@@ -20,7 +20,6 @@ const pool = mysql.createPool({
   connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10), // แปลงเป็นตัวเลข
   queueLimit: parseInt(process.env.DB_QUEUE_LIMIT, 10), // แปลงเป็นตัวเลข
 });
-
 
 async function getConnection() {
   try {
@@ -56,14 +55,40 @@ app.get("/getDatabestseller", async (req, res) => {
     if (type === 1) {
       // ใช้ === เพื่อตรวจสอบชนิดข้อมูลอย่างเคร่งครัด
       [rows] = await connection.execute(`
-        SELECT id_bflower,price,name_code,url_image,description FROM bunch_flowers
+        SELECT 
+    bf.id_bflower, 
+    bf.name_code, 
+    bf.price, 
+    bf.description, 
+    MIN(img.url_image) AS url_image
+FROM 
+    bunch_flowers AS bf
+LEFT JOIN 
+    image_all AS img 
+ON 
+    bf.id_bflower = img.id_bflower
+GROUP BY 
+    bf.id_bflower;
       `);
       [rows_total] = await connection.execute(`
         SELECT COUNT(*) AS total FROM bunch_flowers
       `);
     } else if (type == 2) {
       [rows] = await connection.execute(`
-        SELECT id_bflower,price,name_code,url_image,description FROM bunch_flowers
+        SELECT 
+    bf.id_bflower, 
+    bf.name_code, 
+    bf.price, 
+    bf.description, 
+    MIN(img.url_image) AS url_image
+FROM 
+    bunch_flowers AS bf
+LEFT JOIN 
+    image_all AS img 
+ON 
+    bf.id_bflower = img.id_bflower
+GROUP BY 
+    bf.id_bflower
         ORDER BY price ASC;
       `);
       [rows_total] = await connection.execute(`
@@ -71,7 +96,20 @@ app.get("/getDatabestseller", async (req, res) => {
       `);
     } else {
       [rows] = await connection.execute(`
-        SELECT id_bflower,price,name_code,url_image,description FROM bunch_flowers
+        SELECT 
+    bf.id_bflower, 
+    bf.name_code, 
+    bf.price, 
+    bf.description, 
+    MIN(img.url_image) AS url_image
+FROM 
+    bunch_flowers AS bf
+LEFT JOIN 
+    image_all AS img 
+ON 
+    bf.id_bflower = img.id_bflower
+GROUP BY 
+    bf.id_bflower
         ORDER BY price DESC;
       `);
 
@@ -102,16 +140,33 @@ app.post("/select_detail_flower", async (req, res) => {
   let select_id_flower = req.body.id_select;
   // console.log(select_id_flower)
   try {
-    const [rows] = await pool.execute(`SELECT * FROM bunch_flowers
-      where id_bflower = ?
-      `,[select_id_flower]);
-    res.json({data:rows});
+    const [rows_img] = await pool.execute(
+      `SELECT img.url_image as url FROM bunch_flowers  as bf
+LEFT JOIN 
+    image_all AS img 
+ON 
+    bf.id_bflower = img.id_bflower
+where bf.id_bflower  = ?
+      `,
+      [select_id_flower]
+    );
+    const [rows_data] = await pool.execute(
+    `SELECT   bf.id_bflower, 
+        bf.name_code, 
+        bf.price, 
+        bf.description
+    FROM bunch_flowers  as bf
+    where bf.id_bflower  = ?
+      `,
+      [select_id_flower]
+    );
+    // console.log(rows)
+    res.json({ data_img: rows_img, data : rows_data});
   } catch (error) {
     console.error("Error executing query:", error);
     res.status(500).send("Error retrieving data");
   }
 });
-
 
 app.get("/", (req, res) => {
   res.send("Hello Backend!");
