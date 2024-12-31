@@ -5,6 +5,7 @@ const cors = require("cors");
 const path = require("path");
 const mysql = require("mysql2/promise");
 const { v4: uuidv4 } = require("uuid");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const app = express();
 const PORT = process.env.PORT || 5005;
@@ -29,6 +30,7 @@ async function getConnection() {
     throw err;
   }
 }
+
 app.get("/dataindex_all", async (req, res) => {
   connection = await pool.getConnection();
   try {
@@ -38,9 +40,42 @@ app.get("/dataindex_all", async (req, res) => {
     const [rows_total] = await connection.execute(`
         select count(*) as total from flowers
         `);
-    res.json({ data: rows, total: rows_total });
+
+    [rows_best] = await connection.execute(`
+          SELECT 
+      bf.id_bflower as id, 
+      bf.name_code as name, 
+      bf.price , 
+      MIN(img.url_image) AS url_image
+  FROM 
+      bunch_flowers AS bf
+  LEFT JOIN 
+      image_all AS img 
+  ON 
+      bf.id_bflower = img.id_bflower
+  GROUP BY 
+      bf.id_bflower
+      limit 10
+      ;
+        `);
+    [rows_flower] = await connection.execute(`
+      SELECT 
+      name , meaning ,url_image
+  from flowers
+  limit 4
+  ;
+    `);
+
+    res.json({
+      data: rows,
+      total: rows_total,
+      data_best: rows_best,
+      data_flower: rows_flower,
+    });
   } catch (err) {
     res.status(500).send("Can't get Data request");
+  } finally {
+    connection.release(); // ปล่อย connection กลับไปที่ pool
   }
 });
 
@@ -151,7 +186,7 @@ where bf.id_bflower  = ?
       [select_id_flower]
     );
     const [rows_data] = await pool.execute(
-    `SELECT   bf.id_bflower, 
+      `SELECT   bf.id_bflower, 
         bf.name_code, 
         bf.price, 
         bf.description
@@ -161,13 +196,146 @@ where bf.id_bflower  = ?
       [select_id_flower]
     );
     // console.log(rows)
-    res.json({ data_img: rows_img, data : rows_data});
+    res.json({ data_img: rows_img, data: rows_data });
   } catch (error) {
     console.error("Error executing query:", error);
     res.status(500).send("Error retrieving data");
   }
 });
+app.get("/datainvolve", async (req, res) => {
+  connection = await pool.getConnection();
+  try {
+    const [rows] = await connection.execute(`
+      select * from flowers
+      `);
+    const [rows_total] = await connection.execute(`
+        select count(*) as total from flowers
+        `);
 
+    [rows_best] = await connection.execute(`
+          SELECT 
+      bf.id_bflower as id, 
+      bf.name_code as name, 
+      bf.price , 
+      MIN(img.url_image) AS url_image
+  FROM 
+      bunch_flowers AS bf
+  LEFT JOIN 
+      image_all AS img 
+  ON 
+      bf.id_bflower = img.id_bflower
+  GROUP BY 
+      bf.id_bflower
+      limit 10
+      ;
+        `);
+    res.json({ data: rows, total: rows_total, data_best: rows_best });
+  } catch (err) {
+    res.status(500).send("Can't get Data request");
+  }
+});
+
+app.post("/check-login", async (req, res) => {
+  let connection;
+  const { email, pwd } = req.body;
+
+  try {
+    connection = await getConnection();
+    const [rows] = await connection.execute(
+      `SELECT id_uc as id ,email,role,nname as nickname FROM user_customers
+      WHERE email = ? AND pwd = ? `,
+      [email, pwd]
+    );
+
+    if (rows.length > 0) {
+      const user = rows[0];
+      const payload = {
+        id: user.id_uc,
+        nickname: user.nickname,
+        role: user.role,
+      };
+
+      const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, {
+        expiresIn: "1d",
+      });
+      // console.log(token)
+      res.json({
+        status: true,
+        token,
+        id: user.id,
+        role: user.role,
+        nickname: user.nickname,
+      });
+    } else {
+      res.status(401).json({ status: false, message: "Invalid credentials" });
+    }
+  } catch (err) {
+    console.error("Error checking login:", err);
+    res.status(500).json({ status: false, message: "Server error" });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
+app.put("/register", async (req, res) => {
+  let connection;
+  const { email, pwd, fname, lname, nname, tel } = req.body.formData;
+  try {
+    connection = await getConnection();
+    // console.log(req.body)
+    // ตรวจสอบว่ามีผู้ใช้ที่ใช้อีเมลนี้อยู่แล้วหรือไม่
+    const [existingUser] = await connection.execute(
+      `SELECT id_uc FROM user_customers WHERE email = ?`,
+      [email]
+    );
+
+    if (existingUser.length > 0) {
+      return res
+        .status(400)
+        .json({ status: false, message: "Email is already registered" });
+    }
+
+    // เพิ่มข้อมูลผู้ใช้ใหม่
+    await connection.execute(
+      `INSERT INTO user_customers (id_uc,email, pwd, fname, lname, nname, tel) 
+       VALUES (uuid(),?, ?, ?, ?, ?, ?)`,
+      [email, pwd, fname, lname, nname, tel] // กำหนด role เป็น "user" โดยค่าเริ่มต้น
+    );
+
+    // รับ ID ผู้ใช้ใหม่ที่เพิ่งเพิ่ม
+    const [newUser] = await connection.execute(
+      `SELECT id_uc as id, email, role, nname as nickname 
+       FROM user_customers WHERE email = ?`,
+      [email]
+    );
+
+    const user = newUser[0];
+    const payload = { id: user.id, nickname: user.nickname, role: user.role };
+
+    // สร้าง token
+    const token = jwt.sign(payload, process.env.JWT_SECRET_KEY, {
+      expiresIn: "1d",
+    });
+
+    res.json({
+      status: true,
+      message: "Registration successful",
+      token,
+      id: user.id,
+      role: user.role,
+      nickname: user.nickname,
+    });
+    // console.log('ss')
+  } catch (err) {
+    console.error("Error during registration:", err);
+    res.status(500).json({ status: false, message: "Server error" });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+});
 app.get("/", (req, res) => {
   res.send("Hello Backend!");
 });
