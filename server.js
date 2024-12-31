@@ -293,7 +293,7 @@ app.put("/register", async (req, res) => {
     if (existingUser.length > 0) {
       return res
         .status(400)
-        .json({ status: false, message: "Email is already registered" });
+        .json({ status: false, message: "อีเมลนี้ถูกใช้งานไปแล้ว" });
     }
 
     // เพิ่มข้อมูลผู้ใช้ใหม่
@@ -320,7 +320,7 @@ app.put("/register", async (req, res) => {
 
     res.json({
       status: true,
-      message: "Registration successful",
+      message: "สมัครสมาชิกสำเร็จ",
       token,
       id: user.id,
       role: user.role,
