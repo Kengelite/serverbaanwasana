@@ -34,7 +34,7 @@ async function getConnection() {
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1]; // ดึง token ออกจาก "Bearer <token>"
-  // console.log(token);
+  console.log(token);
   if (!token) {
     return res.status(401).json({ status: false, message: "Token is missing" });
   }
@@ -735,7 +735,8 @@ WHERE bunch_flowers.delete_up IS NULL
 AND FLOOR(amount_flower/ratio_flower) = 0;
 `);
 
-    const [row_flower] = await connection.execute(`SELECT 
+    const [row_flower] = await connection.execute(`
+    SELECT 
     bunch_flowers.id_bflower as id,
     bunch_flowers.name_code as name,
     MIN(image_all.url_image) AS image, -- เลือก URL รูปแรก (ตามลำดับการจัดเก็บ)
