@@ -1293,7 +1293,8 @@ app.post("/check_follow", authenticateToken, async (req, res) => {
     sf.subdistrict,
     sf.province,
     sf.zip_code,
-    sf.code_send
+    sf.code_send,
+    bf.create_up as date
 FROM 
     bill_flower AS bf
 LEFT JOIN 
@@ -1370,7 +1371,8 @@ app.post("/check_preorderfollow", authenticateToken, async (req, res) => {
     pp.img_paper,
     pm.id_pm,
     pm.name_pm,
-    pm.img_pm
+    pm.img_pm,
+    bf.create_up as date
 FROM 
     bill_flower AS bf
 LEFT JOIN 
