@@ -1638,6 +1638,33 @@ ORDER BY
   month ;
 `);
 
+    const [row_customize_total_not_month] = await connection.execute(`SELECT 
+     count(bill_detail_flower.price * bill_detail_flower.amount) AS count_payment, 
+  SUM(bill_detail_flower.price * bill_detail_flower.amount) AS total_payment
+FROM 
+  bill_flower
+LEFT JOIN 
+  bill_detail_flower
+    ON bill_flower.id_bill_flower = bill_detail_flower.bill_id_flower
+WHERE 
+  bill_flower.status_send >= 1 and bill_detail_flower.id_create_bflower is NOT null
+  and bill_flower.delete_up is null and bill_detail_flower.delete_up is null
+`);
+
+const [row_flower_total_not_month] = await connection.execute(`SELECT 
+    count(bill_detail_flower.price * bill_detail_flower.amount) AS count_payment, 
+  SUM(bill_detail_flower.price * bill_detail_flower.amount) AS total_payment
+FROM 
+  bill_flower
+LEFT JOIN 
+  bill_detail_flower
+    ON bill_flower.id_bill_flower = bill_detail_flower.bill_id_flower
+
+WHERE 
+  bill_flower.status_send >= 1 and bill_detail_flower.id_bflower is NOT null
+  and bill_flower.delete_up is null and bill_detail_flower.delete_up is null
+`);
+
     const [row_date_total] = await connection.execute(`SELECT 
   DATE_FORMAT(bill_flower.create_up, '%Y-%m') AS month
 FROM 
@@ -1696,6 +1723,8 @@ order by total_amount
       data_customizer_total: row_customizer_total,
       data_flower_total: row_flower_total,
       data_date_total: row_date_total,
+      data_flower_total_not_month : row_flower_total_not_month,
+      data_customize_total_not_month : row_customize_total_not_month,
       data_bflower_amount_total: row_bflower_amount_total,
     });
   } catch (err) {
