@@ -125,8 +125,8 @@ LIMIT 10;
       name , meaning ,url_image
   from flowers
   WHERE 
-    flowers.delete_up IS NULL
-  limit 4
+    flowers.delete_up IS NULL and id_flower != 0
+  limit 4 
   ;
     `);
 
