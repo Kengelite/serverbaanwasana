@@ -1651,7 +1651,7 @@ WHERE
   and bill_flower.delete_up is null and bill_detail_flower.delete_up is null
 `);
 
-const [row_flower_total_not_month] = await connection.execute(`SELECT 
+    const [row_flower_total_not_month] = await connection.execute(`SELECT 
     count(bill_detail_flower.price * bill_detail_flower.amount) AS count_payment, 
   SUM(bill_detail_flower.price * bill_detail_flower.amount) AS total_payment
 FROM 
@@ -1723,8 +1723,8 @@ order by total_amount
       data_customizer_total: row_customizer_total,
       data_flower_total: row_flower_total,
       data_date_total: row_date_total,
-      data_flower_total_not_month : row_flower_total_not_month,
-      data_customize_total_not_month : row_customize_total_not_month,
+      data_flower_total_not_month: row_flower_total_not_month,
+      data_customize_total_not_month: row_customize_total_not_month,
       data_bflower_amount_total: row_bflower_amount_total,
     });
   } catch (err) {
@@ -3396,10 +3396,14 @@ app.post("/update_billPayment", authenticateToken, async (req, res) => {
       total_payment = 0,
       send_state = 0,
       comment = "",
+      id_flower = "",
+      id_acc = "",
+      id_paper = "",
+      // id_flower = ""
     } = req.body.flowerData || {};
     // const id_bflower = req.body.id_bflower;
 
-    // console.log("dsds",req.body);
+    // console.log("dsds", req.body);
 
     const [updateBilldetailResult] = await connection.execute(
       `UPDATE bill_flower 
@@ -3407,7 +3411,88 @@ app.post("/update_billPayment", authenticateToken, async (req, res) => {
        WHERE delete_up IS NULL AND id_bill_flower  = ?`,
       [total_payment, send_state, comment, id]
     );
-    // console.log(updateResult)
+    if (req.body.choose == 1) {
+      const [detail_flower] = await connection.execute(
+        `select bill_detail_flower.id_bflower,bunch_flowers.id_flower,bunch_flowers.acc_id,
+bunch_flowers.paper_m_id,bunch_flowers.paper_id
+from bill_detail_flower
+LEFT JOIN bunch_flowers ON bill_detail_flower.id_bflower = bunch_flowers.id_bflower
+WHERE bill_detail_flower.bill_id_flower	= ?`,
+        [id]
+      );
+
+      if (send_state == 1) {
+        for (const row of detail_flower) {
+          console.log("id_bflower:", row.id_flower);
+          if (row.id_flower > 0) {
+            await connection.execute(
+              `UPDATE flowers SET amount_flower = amount_flower - ratio_flower WHERE id_flower = ?`,
+              [row.id_flower]
+            );
+          }
+          if (row.id_acc > 0) {
+            await connection.execute(
+              `UPDATE accessories SET amount_acc = amount_acc - 1 WHERE id_acc = ?`,
+              [row.id_acc]
+            );
+          }
+
+          if (row.paper_id > 0) {
+            await connection.execute(
+              `UPDATE paper SET amount_paper = amount_paper - ratio_paper WHERE id_paper = ?`,
+              [row.paper_id]
+            );
+          }
+          if (row.paper_m_id > 0) {
+            await connection.execute(
+              `UPDATE paper_money SET amount_pm = amount_pm - ratio_pm WHERE id_pm = ?`,
+              [row.paper_m_id]
+            );
+          }
+        }
+      }
+    }else if( req.body.choose == 2){
+      const [detail_flower] = await connection.execute(
+        `select bill_detail_flower.id_bflower,detail_flowers.flower_id,detail_flowers.acc_id,
+detail_flowers.pm_id,detail_flowers.paper_id
+from bill_detail_flower
+LEFT JOIN detail_flowers ON bill_detail_flower.id_create_bflower = detail_flowers.id_df 
+WHERE bill_detail_flower.bill_id_flower	= ?`,
+        [id]
+      );
+
+      if (send_state == 1) {
+        for (const row of detail_flower) {
+          console.log("id_bflower:", row.flower_id);
+          if (row.flower_id > 0) {
+            await connection.execute(
+              `UPDATE flowers SET amount_flower = amount_flower - ratio_flower WHERE id_flower = ?`,
+              [row.flower_id]
+            );
+          }
+          if (row.id_acc > 0) {
+            await connection.execute(
+              `UPDATE accessories SET amount_acc = amount_acc - 1 WHERE id_acc = ?`,
+              [row.id_acc]
+            );
+          }
+
+          if (row.paper_id > 0) {
+            await connection.execute(
+              `UPDATE paper SET amount_paper = amount_paper - ratio_paper WHERE id_paper = ?`,
+              [row.paper_id]
+            );
+          }
+          if (row.pm_id > 0) {
+            await connection.execute(
+              `UPDATE paper_money SET amount_pm = amount_pm - ratio_pm WHERE id_pm = ?`,
+              [row.pm_id]
+            );
+          }
+        }
+      }
+    }
+
     connection.release();
 
     if (updateBilldetailResult.affectedRows > 0) {
