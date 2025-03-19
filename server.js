@@ -1180,25 +1180,25 @@ app.post("/preorder_flower_data", async (req, res) => {
   SELECT  price_paper,id_paper as id,name_paper as name ,img_paper as image
   from paper where delete_up is null 
   and  status_paper = 1
-  limit 5
+  
 `);
     const [row_data_accessories] = await connection.execute(`
   SELECT  price_acc,id_acc as id,name_acc as name ,img_acc as image
   from accessories where delete_at is null
   and id_acc != 0  and  status_acc = 1
-  limit 5
+
 `);
     const [row_data_Money] = await connection.execute(`
   SELECT  price_pm,id_pm as id,name_pm as name ,img_pm as image
   from paper_money where delete_at is null   and id_pm != 0
     and  status_paper_money = 1
-  limit 5
+
 `);
     const [row_data_flower] = await connection.execute(`
   SELECT  price_flower,id_flower as id,name ,url_image as image
   from flowers where delete_up is null 
   and  status_flowers = 1 and id_flower != 0
-  limit 5
+
 `);
     // if (row_flower.length === 0) {
     //   return res.status(404).json({ status: false, message: "ไม่พบข้อมูล" });
